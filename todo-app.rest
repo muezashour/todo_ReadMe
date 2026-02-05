@@ -1,0 +1,51 @@
+###
+GET http://localhost:5003
+
+###
+POST http://localhost:5003/auth/register
+content-Type: application/json
+
+{
+    "username": "testuser",
+    "password": "testpassword"
+}
+###
+POST http://localhost:5003/auth/login
+content-Type: application/json
+
+{
+    "username": "testuser",
+    "password": "testpassword"
+}
+
+###
+GET http://localhost:5003/todos
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNzcwMDI5MTYzLCJleHAiOjE3NzAxMTU1NjN9.tx3MFFruSMcyKv1uRDO7rLkpVWkt3NVQ18ZsuhGFc5E
+
+
+
+###
+POST http://localhost:5003/todos
+content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNzcwMDI5MTYzLCJleHAiOjE3NzAxMTU1NjN9.tx3MFFruSMcyKv1uRDO7rLkpVWkt3NVQ18ZsuhGFc5E
+
+
+{
+    "task": "Buy groceries"
+}
+
+###
+PUT http://localhost:5003/todos/2?page=4
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNzcwMDI5MTYzLCJleHAiOjE3NzAxMTU1NjN9.tx3MFFruSMcyKv1uRDO7rLkpVWkt3NVQ18ZsuhGFc5E
+Content-Type: application/json
+
+{
+    "completed": 1
+
+}
+
+###
+DELETE  http://localhost:5003/todos/2
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNzcwMDI5MTYzLCJleHAiOjE3NzAxMTU1NjN9.tx3MFFruSMcyKv1uRDO7rLkpVWkt3NVQ18ZsuhGFc5E
+
+
