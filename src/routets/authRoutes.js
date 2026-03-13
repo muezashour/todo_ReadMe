@@ -6,7 +6,7 @@ import prisma from '../prismaClient.js';
 
 const router = express.Router()
 router.post('/register',async (req, res) => {
-
+    
     const { username, password } = req.body;
     const hashedPassword = bycrypt.hashSync(password, 8);
     try {

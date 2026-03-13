@@ -24,4 +24,3 @@ app.use('/todos', authMiddleware, todoRoutes)
 app.listen(port, "0.0.0.0", () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
-
