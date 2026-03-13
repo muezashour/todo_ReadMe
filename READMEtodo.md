@@ -132,6 +132,27 @@ Inter-Service Communication
 	•	API Gateway forwards client requests to the appropriate service based on the URL prefix.
 
 Author
-
+                     ┌─────────────────┐
+                     │     Client      │
+                     │ (Web / Mobile)  │
+                     └────────┬────────┘
+                              │
+                              ▼
+                     ┌─────────────────┐
+                     │   API Gateway   │
+                     │  (Port 5000)    │
+                     └────────┬────────┘
+          ┌───────────────┼───────────────┐
+          ▼               ▼               ▼
+  ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
+  │ Auth Service  │ │ Todo Service  │ │ Notification  │
+  │  Port 5001    │ │  Port 5002    │ │  Port 5003    │
+  └──────┬────────┘ └──────┬────────┘ └──────┬────────┘
+         │                 │                 │
+         ▼                 ▼                 ▼
+   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
+   │  User DB    │   │  Todos DB   │   │ Notification│
+   │  (Prisma)   │   │  (Prisma)   │   │  Logs / MQ │
+   └─────────────┘   └─────────────┘   └─────────────┘
 Abdulmuez Ashour
 GitHub: https://github.com/muezashour
