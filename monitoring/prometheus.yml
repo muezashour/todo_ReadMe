@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    project: study-planner
+
+scrape_configs:
+  - job_name: task-service
+    static_configs:
+      - targets: [task-service:8001]
+    metrics_path: /metrics
+
+  - job_name: auth-service
+    static_configs:
+      - targets: [auth-service:8002]
+    metrics_path: /metrics
+
+  - job_name: notification-service
+    static_configs:
+      - targets: [notification-service:8003]
+    metrics_path: /metrics
+
+  - job_name: api-gateway
+    static_configs:
+      - targets: [api-gateway:8000]
+    metrics_path: /metrics
+
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]

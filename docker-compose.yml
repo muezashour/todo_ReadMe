@@ -1,0 +1,191 @@
+version: "3.9"
+
+networks:
+  study-net:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  postgres_data:
+
+services:
+
+  # ── Database ─────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16
+    container_name: study-postgres
+    ports:
+      - "5434:5432"
+    networks: [study-net]
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-studyplanner}
+      - POSTGRES_USER=${POSTGRES_USER:-studyplanner}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-studyplanner}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ── Core Microservices ──────────────────────────────────────────────────────
+
+  task-service:
+    build: ./services/task-service
+    container_name: task-service
+    ports:
+      - "8001:8001"
+    networks: [study-net]
+    environment:
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=${DATABASE_URL:-postgresql://studyplanner:studyplanner@postgres:5432/studyplanner}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    labels:
+      - "prometheus.scrape=true"
+      - "prometheus.port=8001"
+      - "prometheus.path=/metrics"
+
+  auth-service:
+    build: ./services/auth-service
+    container_name: auth-service
+    ports:
+      - "8002:8002"
+    networks: [study-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - ENV=production
+      - JWT_SECRET=${JWT_SECRET:-supersecret-change-in-production}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://studyplanner:studyplanner@postgres:5432/studyplanner}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  notification-service:
+    build: ./services/notification-service
+    container_name: notification-service
+    ports:
+      - "8003:8003"
+    networks: [study-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - ENV=production
+      - DATABASE_URL=${DATABASE_URL:-postgresql://studyplanner:studyplanner@postgres:5432/studyplanner}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    networks: [study-net]
+    depends_on:
+      - task-service
+      - auth-service
+      - notification-service
+    environment:
+      - ENV=production
+    restart: unless-stopped
+
+  # ── Monitoring Stack ────────────────────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    networks: [study-net]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    networks: [study-net]
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+  # ── Logging Stack (ELK) ─────────────────────────────────────────────────────
+
+  loki:
+    image: grafana/loki:3.2.0
+    container_name: loki
+    ports:
+      - "3100:3100"
+    networks: [study-net]
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  # ── Reminder Worker (simple scheduler) ─────────────────────────────────────
+  reminder-worker:
+    build: ./services/reminder-worker
+    container_name: reminder-worker
+    networks: [study-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      notification-service:
+        condition: service_started
+    environment:
+      - ENV=production
+      - DATABASE_URL=${DATABASE_URL:-postgresql://studyplanner:studyplanner@postgres:5432/studyplanner}
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8003
+      - REMINDER_INTERVAL_SECONDS=${REMINDER_INTERVAL_SECONDS:-300}
+    restart: unless-stopped
+
+  # ── Message Broker (optional, for production async messaging) ──────────────
+  # Uncomment to enable real RabbitMQ:
+  # rabbitmq:
+  #   image: rabbitmq:3.13-management
+  #   container_name: rabbitmq
+  #   ports:
+  #     - "5672:5672"
+  #     - "15672:15672"
+  #   networks: [study-net]
+  #   environment:
+  #     - RABBITMQ_DEFAULT_USER=admin
+  #     - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS:-changeme}
+  #   healthcheck:
+  #     test: ["CMD", "rabbitmq-diagnostics", "ping"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5

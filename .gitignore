@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+
+# Env files
+.env
+.env.*
+*.env
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# VSCode
+.vscode/
+
+# Docker
+*.pid
+
+# Coverage / testing
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Node (frontend if extended later)
+node_modules/
+
+# Secrets
+secrets/
+*.key
+*.pem

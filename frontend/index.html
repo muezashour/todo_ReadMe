@@ -1,0 +1,1876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StudyOS — Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Tokens ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #0a0a0f;
+  --surface: #111118;
+  --card:    #16161f;
+  --border:  #252535;
+  --border2: #1e1e2e;
+  --text:    #e8e8f0;
+  --muted:   #6b6b8a;
+  --accent:  #7c6af5;
+  --accent2: #a78bfa;
+  --green:   #34d399;
+  --yellow:  #fbbf24;
+  --red:     #f87171;
+  --orange:  #fb923c;
+  --cyan:    #22d3ee;
+  --pink:    #f472b6;
+  --radius:  10px;
+  --font-ui: 'Syne', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+}
+html { font-size: 15px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Welcome / Auth Gate ───────────────────────────────────────────────── */
+.welcome-shell {
+  width: 100%;
+  min-height: 100vh;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background:
+    radial-gradient(900px 450px at 15% 20%, rgba(124,106,245,.18), transparent 60%),
+    radial-gradient(700px 380px at 90% 80%, rgba(34,211,238,.12), transparent 55%),
+    var(--bg);
+}
+.welcome-card {
+  width: min(920px, 100%);
+  background: rgba(22,22,31,.9);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 26px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+  display: grid;
+  grid-template-columns: 1.2fr .8fr;
+  gap: 18px;
+}
+.welcome-title {
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: -0.7px;
+  margin-bottom: 8px;
+}
+.welcome-sub {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+.welcome-bullets {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+.welcome-bullet {
+  background: rgba(17,17,24,.8);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  gap: 10px;
+}
+.welcome-bullet .k {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(124,106,245,.14);
+  border: 1px solid rgba(124,106,245,.28);
+  flex-shrink: 0;
+}
+.welcome-actions {
+  background: rgba(17,17,24,.8);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: start;
+}
+.welcome-actions .hint {
+  font-size: .75rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.app-shell { display: none; width: 100%; height: 100vh; }
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── Sidebar ────────────────────────────────────────────────────────────── */
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+.sidebar-logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo .logo-mark {
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-icon {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.logo-text { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.3px; }
+.logo-text span { color: var(--accent2); }
+.sidebar-nav {
+  flex: 1;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+.nav-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 8px 8px 4px;
+  margin-top: 8px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted);
+  transition: all .15s ease;
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+.nav-item:hover { background: var(--card); color: var(--text); }
+.nav-item.active {
+  background: rgba(124,106,245,.12);
+  border-color: rgba(124,106,245,.3);
+  color: var(--accent2);
+}
+.nav-item .nav-icon { font-size: 1rem; width: 18px; text-align: center; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--red);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 20px;
+  min-width: 18px;
+  text-align: center;
+}
+.nav-badge.yellow { background: var(--yellow); color: #000; }
+
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+.user-pill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.user-avatar {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--accent), var(--cyan));
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 700; color: white;
+  flex-shrink: 0;
+}
+.user-name { font-size: 0.8rem; font-weight: 600; }
+.user-role { font-size: 0.65rem; color: var(--muted); }
+
+/* ── Main Content ───────────────────────────────────────────────────────── */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Top Bar ────────────────────────────────────────────────────────────── */
+.topbar {
+  height: 60px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.topbar-title { font-size: 1.1rem; font-weight: 700; }
+.topbar-subtitle { font-size: 0.8rem; color: var(--muted); margin-left: 4px; }
+.topbar-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all .15s ease;
+  background: var(--card);
+  color: var(--text);
+}
+.btn:hover { border-color: var(--accent); color: var(--accent2); }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.btn-primary:hover { background: #6c5ce7; border-color: #6c5ce7; color: white; }
+.btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+.btn-icon { padding: 7px; }
+
+/* ── Page Content ───────────────────────────────────────────────────────── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── Stats Row ──────────────────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent-color, var(--accent));
+}
+.stat-label { font-size: 0.72rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+.stat-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+.stat-sub { font-size: 0.72rem; color: var(--muted); margin-top: 6px; }
+
+/* ── Grid Layout ────────────────────────────────────────────────────────── */
+.two-col { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.card-title { font-size: 0.875rem; font-weight: 700; }
+.card-actions { margin-left: auto; display: flex; gap: 6px; }
+.card-body { padding: 16px 20px; }
+
+/* ── Task List ──────────────────────────────────────────────────────────── */
+.task-filters {
+  display: flex; gap: 6px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.filter-chip {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  transition: all .15s;
+}
+.filter-chip:hover { border-color: var(--accent); color: var(--accent2); }
+.filter-chip.active { background: rgba(124,106,245,.15); border-color: var(--accent); color: var(--accent2); }
+
+.task-list { list-style: none; }
+.task-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border2);
+  cursor: pointer;
+  transition: background .1s;
+  position: relative;
+}
+.task-item:hover { background: rgba(255,255,255,.02); }
+.task-item:last-child { border-bottom: none; }
+.task-item.completed { opacity: .5; }
+
+.task-check {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-radius: 5px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all .15s;
+}
+.task-check:hover { border-color: var(--accent); }
+.task-check.checked {
+  background: var(--green);
+  border-color: var(--green);
+  color: #000;
+  font-size: 0.65rem;
+}
+
+.task-info { flex: 1; min-width: 0; }
+.task-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.task-item.completed .task-title { text-decoration: line-through; }
+.task-meta { display: flex; gap: 8px; align-items: center; margin-top: 5px; flex-wrap: wrap; }
+.task-subject {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(124,106,245,.12);
+  color: var(--accent2);
+}
+.task-due {
+  font-size: 0.68rem;
+  color: var(--muted);
+  display: flex; align-items: center; gap: 3px;
+}
+.task-due.overdue { color: var(--red); }
+.task-due.soon { color: var(--yellow); }
+
+.priority-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 6px;
+}
+.p-critical { background: var(--red); }
+.p-high     { background: var(--orange); }
+.p-medium   { background: var(--yellow); }
+.p-low      { background: var(--green); }
+
+.task-hours {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+  padding: 2px 6px;
+  background: var(--surface);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+/* ── Progress Bar ───────────────────────────────────────────────────────── */
+.progress-wrap { background: var(--surface); border-radius: 4px; overflow: hidden; height: 6px; }
+.progress-bar  { height: 100%; border-radius: 4px; transition: width .5s ease; }
+
+/* ── Subject List ───────────────────────────────────────────────────────── */
+.subject-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border2);
+}
+.subject-row:last-child { border-bottom: none; }
+.subject-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.subject-name { font-size: 0.82rem; font-weight: 600; flex: 1; }
+.subject-count { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); }
+
+/* ── Timeline / Calendar ─────────────────────────────────────────────────── */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 8px;
+}
+.cal-day-label {
+  text-align: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding-bottom: 4px;
+}
+.cal-day {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all .15s;
+  position: relative;
+  gap: 2px;
+}
+.cal-day:hover { background: var(--surface); border-color: var(--border); }
+.cal-day.today { border-color: var(--accent); color: var(--accent2); font-weight: 700; }
+.cal-day.has-tasks::after {
+  content: '';
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--accent2);
+}
+.cal-day.other-month { opacity: 0.3; }
+
+/* ── Notifications panel ─────────────────────────────────────────────────── */
+.notif-item {
+  display: flex; gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border2);
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-item.read { opacity: .5; }
+.notif-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+.notif-content { flex: 1; }
+.notif-title { font-size: 0.82rem; font-weight: 600; }
+.notif-msg { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+.notif-time { font-size: 0.65rem; color: var(--muted); margin-top: 3px; font-family: var(--font-mono); }
+
+/* ── Tags ───────────────────────────────────────────────────────────────── */
+.tag {
+  font-size: 0.65rem; font-weight: 600;
+  padding: 2px 7px; border-radius: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.7);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  max-height: 85vh;
+  overflow-y: auto;
+  transform: translateY(20px);
+  transition: transform .2s;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+}
+.modal-title { font-size: 1rem; font-weight: 700; }
+.modal-close {
+  margin-left: auto;
+  background: none; border: none;
+  color: var(--muted); font-size: 1.2rem;
+  cursor: pointer; padding: 4px;
+  border-radius: 6px;
+  transition: color .15s;
+}
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 20px 24px 24px; }
+
+/* ── Form Elements ──────────────────────────────────────────────────────── */
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block;
+  font-size: 0.78rem; font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  transition: border-color .15s;
+  outline: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--accent);
+}
+.form-textarea { resize: vertical; min-height: 80px; }
+.form-select option { background: var(--card); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── API Panel ──────────────────────────────────────────────────────────── */
+.api-endpoint {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+.method-badge {
+  font-size: 0.6rem; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px;
+  text-transform: uppercase;
+}
+.GET    { background: rgba(52,211,153,.15); color: var(--green); }
+.POST   { background: rgba(251,191,36,.15); color: var(--yellow); }
+.PATCH  { background: rgba(34,211,238,.15); color: var(--cyan); }
+.DELETE { background: rgba(248,113,113,.15); color: var(--red); }
+
+/* ── Service Status ─────────────────────────────────────────────────────── */
+.service-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border2);
+}
+.service-row:last-child { border-bottom: none; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+.status-dot.up { background: var(--green); }
+.status-dot.down { background: var(--red); animation: none; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+.service-name { font-size: 0.82rem; font-weight: 600; flex: 1; }
+.service-url { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); }
+.service-port {
+  font-family: var(--font-mono); font-size: 0.72rem;
+  color: var(--accent2);
+  background: rgba(124,106,245,.1);
+  padding: 2px 8px; border-radius: 4px;
+}
+
+/* ── Empty State ────────────────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+}
+.empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
+.empty-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; }
+.empty-sub { font-size: 0.8rem; }
+
+/* ── Toast ──────────────────────────────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 20px; right: 20px;
+  display: flex; flex-direction: column;
+  gap: 8px; z-index: 999;
+}
+.toast {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.82rem;
+  min-width: 260px;
+  animation: slide-in .2s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+.toast.success { border-left: 3px solid var(--green); }
+.toast.error   { border-left: 3px solid var(--red); }
+.toast.info    { border-left: 3px solid var(--accent2); }
+@keyframes slide-in { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ── Animated entry ─────────────────────────────────────────────────────── */
+.fade-in { animation: fade-in .3s ease; }
+@keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .two-col { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .sidebar { display: none; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Welcome (shown before login) ────────────────────────────────────── -->
+<div class="welcome-shell" id="welcome-shell">
+  <div class="welcome-card fade-in">
+    <div>
+      <div class="welcome-title">Welcome to Study Planner</div>
+      <div class="welcome-sub">
+        Plan your tasks, track progress, and keep deadlines under control. Sign in to view your dashboard.
+      </div>
+      <div class="welcome-bullets">
+        <div class="welcome-bullet">
+          <div class="k">✦</div>
+          <div>
+            <div style="font-weight:700">Tasks & subjects</div>
+            <div style="color:var(--muted);font-size:.78rem;margin-top:2px">Create tasks, set priority, due dates, and organize by subject.</div>
+          </div>
+        </div>
+        <div class="welcome-bullet">
+          <div class="k">◉</div>
+          <div>
+            <div style="font-weight:700">Notifications</div>
+            <div style="color:var(--muted);font-size:.78rem;margin-top:2px">In-app alerts and reminders (demo stack).</div>
+          </div>
+        </div>
+        <div class="welcome-bullet">
+          <div class="k">◎</div>
+          <div>
+            <div style="font-weight:700">Gateway + JWT</div>
+            <div style="color:var(--muted);font-size:.78rem;margin-top:2px">Authentication via JWT through the API Gateway.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="welcome-actions">
+      <button class="btn btn-primary" onclick="openAuth(); setAuthTab('login')">Login</button>
+      <button class="btn" onclick="openAuth(); setAuthTab('register')">Register</button>
+      <div class="hint">
+        Demo credentials: <span style="color:var(--text);font-weight:700">demo</span> /
+        <span style="color:var(--text);font-weight:700">demo1234</span>
+      </div>
+      <div class="hint">
+        Make sure the backend is running at <span style="color:var(--text);font-weight:700">localhost:8000</span>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="app-shell" id="app-shell">
+<!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">🎓</div>
+      <div>
+        <div class="logo-text">Study<span>OS</span></div>
+      </div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-label">Workspace</div>
+    <a class="nav-item active" data-page="dashboard" onclick="nav('dashboard')">
+      <span class="nav-icon">⬡</span> Dashboard
+    </a>
+    <a class="nav-item" data-page="tasks" onclick="nav('tasks')">
+      <span class="nav-icon">✦</span> Tasks
+      <span class="nav-badge" id="pending-badge">0</span>
+    </a>
+    <a class="nav-item" data-page="calendar" onclick="nav('calendar')">
+      <span class="nav-icon">◫</span> Calendar
+    </a>
+    <a class="nav-item" data-page="subjects" onclick="nav('subjects')">
+      <span class="nav-icon">◈</span> Subjects
+    </a>
+    <div class="nav-label">System</div>
+    <a class="nav-item" data-page="notifications" onclick="nav('notifications')">
+      <span class="nav-icon">◉</span> Notifications
+      <span class="nav-badge yellow" id="notif-badge" style="display:none">0</span>
+    </a>
+    <a class="nav-item" data-page="api" onclick="nav('api')">
+      <span class="nav-icon">⟨⟩</span> API Docs
+    </a>
+    <a class="nav-item" data-page="services" onclick="nav('services')">
+      <span class="nav-icon">◎</span> Services
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-pill" onclick="openAuth()">
+      <div class="user-avatar" id="user-avatar">DS</div>
+      <div>
+        <div class="user-name" id="user-name">Demo Student</div>
+        <div class="user-role" id="user-email">demo@studyplanner.io</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ────────────────────────────────────────────────────────────── -->
+<main class="main">
+  <header class="topbar">
+    <div>
+      <span class="topbar-title" id="topbar-title">Dashboard</span>
+      <span class="topbar-subtitle" id="topbar-sub">Overview</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn" id="btn-auth" onclick="openAuth()">Sign in</button>
+      <button class="btn" id="btn-logout" onclick="logout()" style="display:none">Logout</button>
+      <button class="btn btn-primary" onclick="openAddTask()">＋ New Task</button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ── Dashboard ───────────────────────────────────────────────── -->
+    <section class="page active fade-in" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card" style="--accent-color: var(--accent)">
+          <div class="stat-label">Total Tasks</div>
+          <div class="stat-value" id="stat-total">–</div>
+          <div class="stat-sub">across all subjects</div>
+        </div>
+        <div class="stat-card" style="--accent-color: var(--yellow)">
+          <div class="stat-label">Pending</div>
+          <div class="stat-value" id="stat-pending">–</div>
+          <div class="stat-sub">awaiting completion</div>
+        </div>
+        <div class="stat-card" style="--accent-color: var(--red)">
+          <div class="stat-label">Overdue</div>
+          <div class="stat-value" id="stat-overdue">–</div>
+          <div class="stat-sub">past due date</div>
+        </div>
+        <div class="stat-card" style="--accent-color: var(--green)">
+          <div class="stat-label">Completion</div>
+          <div class="stat-value" id="stat-rate">–%</div>
+          <div class="stat-sub">overall rate</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header">
+            <span>🗂</span>
+            <span class="card-title">Recent Tasks</span>
+            <div class="card-actions">
+              <button class="btn btn-sm" onclick="nav('tasks')">View all →</button>
+            </div>
+          </div>
+          <ul class="task-list" id="dashboard-tasks"></ul>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="card-header"><span>◈</span><span class="card-title">By Subject</span></div>
+            <div class="card-body" id="subject-breakdown"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span>◉</span><span class="card-title">Priority Breakdown</span></div>
+            <div class="card-body" id="priority-breakdown"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Tasks ────────────────────────────────────────────────────── -->
+    <section class="page fade-in" id="page-tasks">
+      <div class="card">
+        <div class="card-header">
+          <span>✦</span>
+          <span class="card-title">All Tasks</span>
+          <div class="card-actions">
+            <button class="btn btn-sm btn-primary" onclick="openAddTask()">＋ Add</button>
+          </div>
+        </div>
+        <div class="task-filters">
+          <button class="filter-chip active" onclick="filterTasks('all',this)">All</button>
+          <button class="filter-chip" onclick="filterTasks('pending',this)">Pending</button>
+          <button class="filter-chip" onclick="filterTasks('in_progress',this)">In Progress</button>
+          <button class="filter-chip" onclick="filterTasks('completed',this)">Completed</button>
+          <button class="filter-chip" onclick="filterTasks('critical',this,'priority')">🔴 Critical</button>
+          <button class="filter-chip" onclick="filterTasks('high',this,'priority')">🟠 High</button>
+        </div>
+        <ul class="task-list" id="all-tasks"></ul>
+      </div>
+    </section>
+
+    <!-- ── Calendar ─────────────────────────────────────────────────── -->
+    <section class="page fade-in" id="page-calendar">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header">
+            <button class="btn btn-sm btn-icon" onclick="changeMonth(-1)">‹</button>
+            <span class="card-title" id="cal-month-label">April 2025</span>
+            <button class="btn btn-sm btn-icon" onclick="changeMonth(1)">›</button>
+          </div>
+          <div class="card-body">
+            <div class="calendar-grid" id="calendar-days"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span>◫</span><span class="card-title">Due This Month</span></div>
+          <ul class="task-list" id="cal-tasks"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Subjects ──────────────────────────────────────────────────── -->
+    <section class="page fade-in" id="page-subjects">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header">
+            <span>◈</span><span class="card-title">Subjects</span>
+            <div class="card-actions">
+              <button class="btn btn-sm btn-primary" onclick="openAddSubject()">＋ Add Subject</button>
+            </div>
+          </div>
+          <div class="card-body" id="subjects-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span>⬡</span><span class="card-title">Progress by Subject</span></div>
+          <div class="card-body" id="subject-progress"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Notifications ────────────────────────────────────────────── -->
+    <section class="page fade-in" id="page-notifications">
+      <div class="card" style="max-width:600px">
+        <div class="card-header">
+          <span>◉</span><span class="card-title">Notifications</span>
+          <div class="card-actions">
+            <button class="btn btn-sm" onclick="markAllRead()">Mark all read</button>
+          </div>
+        </div>
+        <div class="card-body" id="notif-list"></div>
+      </div>
+    </section>
+
+    <!-- ── API Docs ──────────────────────────────────────────────────── -->
+    <section class="page fade-in" id="page-api">
+      <div style="max-width:700px;display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="card-header"><span>⟨⟩</span><span class="card-title">Task Service — :8001</span></div>
+          <div class="card-body">
+            <div id="task-api-list"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span>⟨⟩</span><span class="card-title">Auth Service — :8002</span></div>
+          <div class="card-body">
+            <div id="auth-api-list"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span>⟨⟩</span><span class="card-title">Notification Service — :8003</span></div>
+          <div class="card-body">
+            <div id="notif-api-list"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span>⟨⟩</span><span class="card-title">API Gateway — :8000</span></div>
+          <div class="card-body">
+            <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Single entry point. All routes above are proxied through the gateway with JWT auth + rate limiting.</p>
+            <div id="gw-api-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Services ─────────────────────────────────────────────────── -->
+    <section class="page fade-in" id="page-services">
+      <div style="max-width:700px;display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="card-header"><span>◎</span><span class="card-title">Service Registry</span></div>
+          <div class="card-body" id="service-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span>◎</span><span class="card-title">Architecture</span></div>
+          <div class="card-body">
+            <pre style="font-family:var(--font-mono);font-size:.72rem;color:var(--muted);line-height:1.7;overflow-x:auto">
+  ┌─────────────────────────────────────────────────────┐
+  │                    Client / Browser                 │
+  └──────────────────────┬──────────────────────────────┘
+                         │  HTTP
+  ┌──────────────────────▼──────────────────────────────┐
+  │          API Gateway  :8000                         │
+  │   • JWT verification  • Rate limiting (100/min)     │
+  │   • Request logging   • Service routing             │
+  └────────┬─────────────┬──────────────┬───────────────┘
+           │ REST        │ REST         │ REST
+  ┌────────▼──┐  ┌───────▼──┐  ┌───────▼──────────────┐
+  │  Task Svc │  │ Auth Svc │  │  Notification Svc    │
+  │   :8001   │  │  :8002   │  │       :8003          │
+  │  Tasks    │  │  JWT     │  │  In-app alerts       │
+  │  Subjects │  │  Users   │  │  Async event queue   │
+  │  Stats    │  │  Tokens  │  │  (→ RabbitMQ prod)   │
+  └─────┬─────┘  └──────────┘  └──────────────────────┘
+        │ publishes events (async messaging)
+        └──────────────────────► Notification Queue
+
+  ┌───────────────────────────────────────────────────┐
+  │              Observability Stack                  │
+  │   Prometheus :9090  →  Grafana :3000              │
+  │   JSON structured logs  →  Loki :3100             │
+  └───────────────────────────────────────────────────┘</pre>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span>◎</span><span class="card-title">CI/CD Pipeline</span></div>
+          <div class="card-body">
+            <pre style="font-family:var(--font-mono);font-size:.72rem;color:var(--muted);line-height:1.9;overflow-x:auto">
+  git push → GitHub Actions
+
+  Stage 1: Lint (Ruff + MyPy)
+       ↓
+  Stage 2: Tests (pytest — 20+ test cases)
+       ↓
+  Stage 3: Security Scan (Trivy + TruffleHog)
+       ↓
+  Stage 4: Build & Push Docker Images → ghcr.io
+       ↓
+  Stage 5: Deploy to Staging (kubectl rollout)
+       ↓
+  Stage 6: Smoke Tests → Deploy to Production</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+</main>
+</div>
+
+<!-- ── Add Task Modal ──────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="add-task-modal" onclick="if(event.target===this)closeModal('add-task-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">New Study Task</span>
+      <button class="modal-close" onclick="closeModal('add-task-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Title *</label>
+        <input class="form-input" id="new-title" placeholder="e.g. Complete Chapter 3 notes" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Subject *</label>
+          <select class="form-select" id="new-subject">
+            <option value="">Select subject…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Due Date *</label>
+          <input class="form-input" id="new-due" type="date" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Priority</label>
+          <select class="form-select" id="new-priority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Est. Hours</label>
+          <input class="form-input" id="new-hours" type="number" step="0.5" min="0.5" placeholder="2" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" id="new-desc" placeholder="Optional details…"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn" onclick="closeModal('add-task-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="createTask()">Create Task</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Subject Modal ───────────────────────────────────────────────── -->
+<div class="modal-overlay" id="add-subject-modal" onclick="if(event.target===this)closeModal('add-subject-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">New Subject</span>
+      <button class="modal-close" onclick="closeModal('add-subject-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Subject Name *</label>
+        <input class="form-input" id="sub-name" placeholder="e.g. Machine Learning" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Color</label>
+          <input class="form-input" id="sub-color" type="color" value="#7c6af5" style="height:40px;padding:4px" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Target hrs/week</label>
+          <input class="form-input" id="sub-hours" type="number" step="1" min="1" placeholder="5" />
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn" onclick="closeModal('add-subject-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="createSubject()">Add Subject</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Auth Modal ───────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="auth-modal" onclick="if(event.target===this)closeModal('auth-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Account</span>
+      <button class="modal-close" onclick="closeModal('auth-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn btn-sm" id="auth-tab-login" onclick="setAuthTab('login')">Login</button>
+        <button class="btn btn-sm" id="auth-tab-register" onclick="setAuthTab('register')">Register</button>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <span id="auth-status" style="font-size:.75rem;color:var(--muted)"></span>
+        </div>
+      </div>
+
+      <div id="auth-view-logged-in" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Signed in as</label>
+          <div class="form-input" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <span id="auth-profile"></span>
+            <button class="btn btn-sm" onclick="logout()">Logout</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="auth-view-login">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input class="form-input" id="login-username" placeholder="demo" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" id="login-password" type="password" placeholder="demo1234" />
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="closeModal('auth-modal')">Cancel</button>
+          <button class="btn btn-primary" onclick="login()">Login</button>
+        </div>
+      </div>
+
+      <div id="auth-view-register" style="display:none">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <input class="form-input" id="reg-username" placeholder="yourname" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" id="reg-email" placeholder="you@example.com" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full name (optional)</label>
+          <input class="form-input" id="reg-fullname" placeholder="Your Name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" id="reg-password" type="password" placeholder="min 8 chars" />
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="closeModal('auth-modal')">Cancel</button>
+          <button class="btn btn-primary" onclick="register()">Create account</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast Container ─────────────────────────────────────────────────── -->
+<div class="toast-container" id="toasts"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   StudyOS — Frontend Application
+   Connects to FastAPI microservices
+   ══════════════════════════════════════════════════════════ */
+
+const API = {
+  gateway:       'http://localhost:8000',
+  tasks:         'http://localhost:8001',
+  auth:          'http://localhost:8002',
+  notifications: 'http://localhost:8003',
+};
+
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {
+  auth: { accessToken: null, refreshToken: null, user: null },
+  tasks: [],
+  subjects: [],
+  notifications: [],
+  stats: {},
+  currentFilter: 'all',
+  currentFilterType: 'status',
+  calendarDate: new Date(),
+};
+
+// ── Auth helpers ───────────────────────────────────────────────────────────
+const STORAGE_KEYS = {
+  access: 'studyos_access_token',
+  refresh: 'studyos_refresh_token',
+};
+
+function openAuth() {
+  document.getElementById('auth-modal').classList.add('open');
+  syncAuthUI();
+}
+
+function setAuthTab(tab) {
+  document.getElementById('auth-view-login').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('auth-view-register').style.display = tab === 'register' ? '' : 'none';
+  document.getElementById('auth-tab-login').classList.toggle('btn-primary', tab === 'login');
+  document.getElementById('auth-tab-register').classList.toggle('btn-primary', tab === 'register');
+}
+
+function setTokens({ accessToken, refreshToken }) {
+  state.auth.accessToken = accessToken || null;
+  state.auth.refreshToken = refreshToken || null;
+  if (accessToken) localStorage.setItem(STORAGE_KEYS.access, accessToken);
+  else localStorage.removeItem(STORAGE_KEYS.access);
+  if (refreshToken) localStorage.setItem(STORAGE_KEYS.refresh, refreshToken);
+  else localStorage.removeItem(STORAGE_KEYS.refresh);
+}
+
+function loadTokens() {
+  state.auth.accessToken = localStorage.getItem(STORAGE_KEYS.access);
+  state.auth.refreshToken = localStorage.getItem(STORAGE_KEYS.refresh);
+}
+
+async function gwFetch(path, { method = 'GET', body = null, auth = false, retry = true } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth && state.auth.accessToken) headers['Authorization'] = `Bearer ${state.auth.accessToken}`;
+  const resp = await fetch(`${API.gateway}${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : null,
+  });
+
+  if (resp.status === 401 && retry && state.auth.refreshToken && auth) {
+    const refreshed = await refresh();
+    if (refreshed) return gwFetch(path, { method, body, auth, retry: false });
+  }
+
+  const text = await resp.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  if (!resp.ok) {
+    const msg = (data && (data.detail || data.error || data.message)) || `Request failed (${resp.status})`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+async function refresh() {
+  try {
+    const data = await gwFetch('/auth/refresh', {
+      method: 'POST',
+      body: { refresh_token: state.auth.refreshToken },
+      auth: false,
+      retry: false,
+    });
+    setTokens({ accessToken: data.access_token, refreshToken: data.refresh_token });
+    return true;
+  } catch {
+    setTokens({ accessToken: null, refreshToken: null });
+    state.auth.user = null;
+    syncAuthUI();
+    return false;
+  }
+}
+
+async function fetchMe() {
+  const me = await gwFetch('/auth/me', { auth: true });
+  state.auth.user = me;
+  syncAuthUI();
+  return me;
+}
+
+async function login() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!username || !password) { toast('Username and password required', 'error'); return; }
+  try {
+    const data = await gwFetch('/auth/login', { method: 'POST', body: { username, password } });
+    setTokens({ accessToken: data.access_token, refreshToken: data.refresh_token });
+    await fetchMe();
+    toast('Logged in', 'success');
+    closeModal('auth-modal');
+    await enterApp();
+  } catch (e) {
+    toast(e.message || 'Login failed', 'error');
+  }
+}
+
+async function register() {
+  const username = document.getElementById('reg-username').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const full_name = document.getElementById('reg-fullname').value.trim() || null;
+  const password = document.getElementById('reg-password').value;
+  if (!username || !email || !password) { toast('Username, email, and password required', 'error'); return; }
+  try {
+    await gwFetch('/auth/register', { method: 'POST', body: { username, email, password, full_name } });
+    toast('Account created. You can log in now.', 'success');
+    setAuthTab('login');
+    document.getElementById('login-username').value = username;
+    document.getElementById('login-password').value = password;
+  } catch (e) {
+    toast(e.message || 'Registration failed', 'error');
+  }
+}
+
+async function logout() {
+  try {
+    if (state.auth.refreshToken) {
+      await gwFetch('/auth/logout', { method: 'POST', body: { refresh_token: state.auth.refreshToken } });
+    }
+  } catch {
+    // best-effort
+  } finally {
+    setTokens({ accessToken: null, refreshToken: null });
+    state.auth.user = null;
+    syncAuthUI();
+    toast('Logged out', 'info');
+    closeModal('auth-modal');
+    showWelcome();
+  }
+}
+
+function syncAuthUI() {
+  const user = state.auth.user;
+  const signedIn = !!(user && state.auth.accessToken);
+
+  document.getElementById('btn-auth').style.display = signedIn ? 'none' : '';
+  document.getElementById('btn-logout').style.display = signedIn ? '' : 'none';
+
+  const avatar = document.getElementById('user-avatar');
+  const nameEl = document.getElementById('user-name');
+  const emailEl = document.getElementById('user-email');
+
+  if (signedIn) {
+    const initials = (user.username || 'U').slice(0, 2).toUpperCase();
+    avatar.textContent = initials;
+    nameEl.textContent = user.full_name || user.username || 'User';
+    emailEl.textContent = user.email || user.role || 'signed in';
+    document.getElementById('auth-status').textContent = 'Signed in';
+    document.getElementById('auth-view-logged-in').style.display = '';
+    document.getElementById('auth-view-login').style.display = 'none';
+    document.getElementById('auth-view-register').style.display = 'none';
+    document.getElementById('auth-profile').textContent = `${user.username} (${user.role || 'user'})`;
+  } else {
+    avatar.textContent = 'DS';
+    nameEl.textContent = 'Demo Student';
+    emailEl.textContent = 'demo@studyplanner.io';
+    document.getElementById('auth-status').textContent = 'Not signed in';
+    document.getElementById('auth-view-logged-in').style.display = 'none';
+    setAuthTab('login');
+  }
+}
+
+function showWelcome() {
+  document.getElementById('welcome-shell').style.display = 'flex';
+  document.getElementById('app-shell').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('welcome-shell').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'flex';
+}
+
+async function loadAllDataFromApi() {
+  // Data is loaded through the gateway so it matches auth requirements.
+  const userId = state.auth.user?.id || state.auth.user?.user_id;
+  if (!userId) throw new Error('Missing user id');
+
+  const [tasks, subjects, stats, notifs] = await Promise.all([
+    gwFetch('/tasks', { auth: true }),
+    gwFetch('/subjects', { auth: true }),
+    gwFetch('/stats', { auth: true }),
+    gwFetch(`/notifications/${encodeURIComponent(userId)}`, { auth: true }).catch(() => []),
+  ]);
+
+  state.tasks = Array.isArray(tasks) ? tasks : [];
+  state.subjects = Array.isArray(subjects) ? subjects : [];
+  state.notifications = Array.isArray(notifs) ? notifs : [];
+  state.stats = stats && typeof stats === 'object' ? stats : {};
+
+  // Fallback if stats endpoint ever changes
+  if (!state.stats.total && state.tasks.length) computeStats();
+
+  renderDashboard();
+  updateBadges();
+}
+
+async function enterApp() {
+  showApp();
+  try {
+    await loadAllDataFromApi();
+  } catch (e) {
+    toast((e && e.message) ? `API error: ${e.message}` : 'API error', 'error');
+    state.tasks = [];
+    state.subjects = [];
+    state.notifications = [];
+    state.stats = { total: 0, by_status: {}, by_priority: {}, by_subject: {}, overdue_count: 0, completion_rate: 0 };
+    renderDashboard();
+    updateBadges();
+  }
+}
+
+function computeStats() {
+  const tasks = state.tasks;
+  const today = new Date().toISOString().split('T')[0];
+  const byStatus = {}, byPriority = {}, bySubject = {};
+  tasks.forEach(t => {
+    byStatus[t.status]     = (byStatus[t.status] || 0) + 1;
+    byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
+    bySubject[t.subject]   = (bySubject[t.subject] || 0) + 1;
+  });
+  const overdue = tasks.filter(t => t.due_date < today && !['completed','cancelled'].includes(t.status)).length;
+  state.stats = {
+    total: tasks.length,
+    by_status: byStatus,
+    by_priority: byPriority,
+    by_subject: bySubject,
+    overdue_count: overdue,
+    completion_rate: +(( (byStatus.completed||0) / Math.max(tasks.length,1) ) * 100).toFixed(1),
+  };
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+const PAGE_LABELS = {
+  dashboard:     ['Dashboard', 'Overview'],
+  tasks:         ['Tasks', 'Manage your study tasks'],
+  calendar:      ['Calendar', 'Due dates at a glance'],
+  subjects:      ['Subjects', 'Your courses & modules'],
+  notifications: ['Notifications', 'Alerts & reminders'],
+  api:           ['API Docs', 'Endpoint reference'],
+  services:      ['Services', 'System architecture'],
+};
+
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  const [title, sub] = PAGE_LABELS[page] || [page, ''];
+  document.getElementById('topbar-title').textContent = title;
+  document.getElementById('topbar-sub').textContent   = sub;
+
+  if (page === 'dashboard')     renderDashboard();
+  if (page === 'tasks')         renderAllTasks();
+  if (page === 'calendar')      renderCalendar();
+  if (page === 'subjects')      renderSubjectsPage();
+  if (page === 'notifications') renderNotifications();
+  if (page === 'api')           renderApiDocs();
+  if (page === 'services')      renderServices();
+}
+
+// ── Rendering helpers ──────────────────────────────────────────────────────
+function priorityClass(p) {
+  return {critical:'p-critical', high:'p-high', medium:'p-medium', low:'p-low'}[p] || 'p-low';
+}
+
+function dueLabel(due) {
+  const today = new Date().toISOString().split('T')[0];
+  const diff  = Math.ceil((new Date(due) - new Date(today)) / 86400000);
+  if (diff < 0) return { text: `${Math.abs(diff)}d overdue`, cls: 'overdue' };
+  if (diff === 0) return { text: 'Due today', cls: 'soon' };
+  if (diff <= 3) return { text: `${diff}d left`, cls: 'soon' };
+  return { text: due, cls: '' };
+}
+
+function taskHTML(t, showCheck=true) {
+  const due = dueLabel(t.due_date);
+  const completed = t.status === 'completed';
+  return `<li class="task-item${completed?' completed':''}" onclick="event.target.classList.contains('task-check')||toggleTask('${t.id}')">
+    <div class="priority-dot ${priorityClass(t.priority)}"></div>
+    ${showCheck ? `<div class="task-check${completed?' checked':''}" onclick="toggleTask('${t.id}')">${completed?'✓':''}</div>` : ''}
+    <div class="task-info">
+      <div class="task-title">${t.title}</div>
+      <div class="task-meta">
+        <span class="task-subject">${t.subject}</span>
+        <span class="task-due ${due.cls}">⏱ ${due.text}</span>
+        ${t.estimated_hours ? `<span class="task-hours">${t.estimated_hours}h</span>` : ''}
+        ${(t.tags||[]).map(tg=>`<span class="tag">${tg}</span>`).join('')}
+      </div>
+    </div>
+  </li>`;
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const s = state.stats;
+  document.getElementById('stat-total').textContent   = s.total || 0;
+  document.getElementById('stat-pending').textContent = (s.by_status?.pending||0) + (s.by_status?.in_progress||0);
+  document.getElementById('stat-overdue').textContent = s.overdue_count || 0;
+  document.getElementById('stat-rate').textContent    = `${s.completion_rate||0}%`;
+
+  // Badge
+  const pending = (s.by_status?.pending||0) + (s.by_status?.in_progress||0);
+  document.getElementById('pending-badge').textContent = pending;
+
+  // Recent tasks (latest 5)
+  const recent = [...state.tasks].sort((a,b)=>a.due_date.localeCompare(b.due_date)).slice(0,5);
+  document.getElementById('dashboard-tasks').innerHTML = recent.length
+    ? recent.map(t=>taskHTML(t)).join('')
+    : '<li class="empty-state"><div class="empty-icon">✦</div><div class="empty-title">No tasks yet</div><div class="empty-sub">Click "+ New Task" to get started</div></li>';
+
+  // Subject breakdown
+  const subBreak = Object.entries(s.by_subject||{}).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('subject-breakdown').innerHTML = subBreak.map(([name, cnt]) => {
+    const subj = state.subjects.find(s=>s.name===name);
+    const color = subj?.color || '#7c6af5';
+    const total = s.total || 1;
+    return `<div class="subject-row">
+      <div class="subject-dot" style="background:${color}"></div>
+      <span class="subject-name">${name}</span>
+      <span class="subject-count">${cnt}</span>
+      <div style="width:60px;margin-left:auto"><div class="progress-wrap"><div class="progress-bar" style="width:${cnt/total*100}%;background:${color}"></div></div></div>
+    </div>`;
+  }).join('') || '<p style="font-size:.8rem;color:var(--muted)">No data</p>';
+
+  // Priority breakdown
+  const priColors = {critical:'var(--red)',high:'var(--orange)',medium:'var(--yellow)',low:'var(--green)'};
+  const priBreak = [['critical',s.by_priority?.critical||0],['high',s.by_priority?.high||0],['medium',s.by_priority?.medium||0],['low',s.by_priority?.low||0]];
+  document.getElementById('priority-breakdown').innerHTML = priBreak.map(([p,cnt]) => `
+    <div class="subject-row">
+      <div class="priority-dot ${priorityClass(p)}"></div>
+      <span class="subject-name" style="text-transform:capitalize">${p}</span>
+      <span class="subject-count">${cnt}</span>
+      <div style="width:60px;margin-left:auto"><div class="progress-wrap"><div class="progress-bar" style="width:${cnt/(s.total||1)*100}%;background:${priColors[p]}"></div></div></div>
+    </div>
+  `).join('');
+
+  // Notification badge
+  const unread = state.notifications.filter(n=>!n.read).length;
+  const nb = document.getElementById('notif-badge');
+  nb.textContent = unread;
+  nb.style.display = unread > 0 ? '' : 'none';
+}
+
+// ── All Tasks ──────────────────────────────────────────────────────────────
+function renderAllTasks() {
+  let tasks = [...state.tasks];
+  if (state.currentFilterType === 'status' && state.currentFilter !== 'all') {
+    tasks = tasks.filter(t => t.status === state.currentFilter);
+  } else if (state.currentFilterType === 'priority') {
+    tasks = tasks.filter(t => t.priority === state.currentFilter);
+  }
+  tasks.sort((a,b)=>a.due_date.localeCompare(b.due_date));
+  document.getElementById('all-tasks').innerHTML = tasks.length
+    ? tasks.map(t=>taskHTML(t)).join('')
+    : '<li class="empty-state"><div class="empty-icon">✓</div><div class="empty-title">No tasks in this filter</div></li>';
+}
+
+function filterTasks(val, el, type='status') {
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  state.currentFilter     = val;
+  state.currentFilterType = type;
+  renderAllTasks();
+}
+
+// ── Toggle task ─────────────────────────────────────────────────────────────
+async function toggleTask(id) {
+  const task = state.tasks.find(t=>t.id===id);
+  if (!task) return;
+  const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+  try {
+    await gwFetch(`/tasks/${id}`, { method: 'PATCH', body: { status: newStatus }, auth: true });
+    task.status = newStatus;
+    computeStats();
+    toast(newStatus === 'completed' ? `✓ "${task.title}" completed!` : `↩ Task moved back to pending`, newStatus==='completed'?'success':'info');
+    const page = document.querySelector('.page.active').id;
+    if (page === 'page-dashboard') renderDashboard();
+    if (page === 'page-tasks')     renderAllTasks();
+    updateBadges();
+  } catch (e) {
+    toast(`Failed to update task: ${e.message}`, 'error');
+  }
+}
+
+function updateBadges() {
+  computeStats();
+  const pending = (state.stats.by_status?.pending||0)+(state.stats.by_status?.in_progress||0);
+  document.getElementById('pending-badge').textContent = pending;
+  const unread = state.notifications.filter(n=>!n.read).length;
+  const nb = document.getElementById('notif-badge');
+  nb.textContent = unread;
+  nb.style.display = unread > 0 ? '' : 'none';
+}
+
+// ── Calendar ───────────────────────────────────────────────────────────────
+let calYear, calMonth;
+function renderCalendar() {
+  const d = state.calendarDate;
+  calYear = d.getFullYear(); calMonth = d.getMonth();
+  const label = d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  document.getElementById('cal-month-label').textContent = label;
+
+  const days   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const first  = new Date(calYear, calMonth, 1).getDay();
+  const total  = new Date(calYear, calMonth+1, 0).getDate();
+  const today  = new Date(); today.setHours(0,0,0,0);
+
+  const taskDays = new Set(state.tasks
+    .filter(t => { const td = new Date(t.due_date); return td.getFullYear()===calYear && td.getMonth()===calMonth; })
+    .map(t => new Date(t.due_date).getDate())
+  );
+
+  let html = days.map(d=>`<div class="cal-day-label">${d}</div>`).join('');
+  for (let i=0;i<first;i++) html += `<div class="cal-day other-month"></div>`;
+  for (let i=1;i<=total;i++) {
+    const cur = new Date(calYear,calMonth,i);
+    const isToday = cur.getTime() === today.getTime();
+    html += `<div class="cal-day${isToday?' today':''}${taskDays.has(i)?' has-tasks':''}">${i}</div>`;
+  }
+  document.getElementById('calendar-days').innerHTML = html;
+
+  // Tasks this month
+  const monthTasks = state.tasks
+    .filter(t => { const td = new Date(t.due_date); return td.getFullYear()===calYear && td.getMonth()===calMonth; })
+    .sort((a,b)=>a.due_date.localeCompare(b.due_date));
+  document.getElementById('cal-tasks').innerHTML = monthTasks.length
+    ? monthTasks.map(t=>taskHTML(t)).join('')
+    : '<li class="empty-state"><div class="empty-icon">◫</div><div class="empty-title">No tasks this month</div></li>';
+}
+
+function changeMonth(delta) {
+  state.calendarDate.setMonth(state.calendarDate.getMonth() + delta);
+  renderCalendar();
+}
+
+// ── Subjects ───────────────────────────────────────────────────────────────
+function renderSubjectsPage() {
+  const bySubject = state.stats.by_subject || {};
+  document.getElementById('subjects-list').innerHTML = state.subjects.map(s => {
+    const count = bySubject[s.name] || 0;
+    const done  = state.tasks.filter(t=>t.subject===s.name && t.status==='completed').length;
+    const pct   = count > 0 ? Math.round(done/count*100) : 0;
+    return `<div class="subject-row">
+      <div class="subject-dot" style="background:${s.color}"></div>
+      <div style="flex:1">
+        <div class="subject-name">${s.name}</div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:2px">${count} tasks · ${s.target_hours_per_week||'–'}h/week target</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:.72rem;color:var(--muted)">${done}/${count} done</div>
+      </div>
+    </div>`;
+  }).join('') || '<p style="font-size:.8rem;color:var(--muted)">No subjects yet.</p>';
+
+  document.getElementById('subject-progress').innerHTML = state.subjects.map(s => {
+    const tasks = state.tasks.filter(t=>t.subject===s.name);
+    const done  = tasks.filter(t=>t.status==='completed').length;
+    const pct   = tasks.length > 0 ? Math.round(done/tasks.length*100) : 0;
+    return `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:6px">
+        <span style="font-weight:600">${s.name}</span>
+        <span style="color:var(--muted)">${pct}%</span>
+      </div>
+      <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%;background:${s.color}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── Notifications ──────────────────────────────────────────────────────────
+const notifIcons = {
+  task_due:       {icon:'⏰', bg:'rgba(251,191,36,.12)', color:'var(--yellow)'},
+  task_completed: {icon:'✅', bg:'rgba(52,211,153,.12)', color:'var(--green)'},
+  reminder:       {icon:'📚', bg:'rgba(124,106,245,.12)', color:'var(--accent2)'},
+  system:         {icon:'🔔', bg:'rgba(34,211,238,.12)', color:'var(--cyan)'},
+};
+
+function renderNotifications() {
+  const notifs = [...state.notifications].sort((a,b)=>b.created_at.localeCompare(a.created_at));
+  document.getElementById('notif-list').innerHTML = notifs.length
+    ? notifs.map(n => {
+        const style = notifIcons[n.type] || notifIcons.system;
+        return `<div class="notif-item${n.read?' read':''}" onclick="readNotif('${n.id}')">
+          <div class="notif-icon" style="background:${style.bg};color:${style.color}">${style.icon}</div>
+          <div class="notif-content">
+            <div class="notif-title">${n.title}</div>
+            <div class="notif-msg">${n.message}</div>
+            <div class="notif-time">${n.read ? 'Read' : '● Unread'}</div>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div class="empty-state"><div class="empty-icon">◉</div><div class="empty-title">No notifications</div></div>';
+  updateBadges();
+}
+
+function readNotif(id) {
+  const n = state.notifications.find(n=>n.id===id);
+  if (n) n.read = true;
+  renderNotifications();
+}
+
+function markAllRead() {
+  state.notifications.forEach(n=>n.read=true);
+  renderNotifications();
+  toast('All notifications marked as read', 'info');
+}
+
+// ── API Docs ───────────────────────────────────────────────────────────────
+function apiRow(method, path, desc) {
+  return `<div class="api-endpoint">
+    <span class="method-badge ${method}">${method}</span>
+    <code style="flex:1;color:var(--text)">${path}</code>
+    <span style="color:var(--muted);font-size:.65rem">${desc}</span>
+  </div>`;
+}
+
+function renderApiDocs() {
+  document.getElementById('task-api-list').innerHTML = [
+    apiRow('GET',   '/tasks',              'List all tasks'),
+    apiRow('POST',  '/tasks',              'Create a task'),
+    apiRow('GET',   '/tasks/{id}',         'Get task by ID'),
+    apiRow('PATCH', '/tasks/{id}',         'Update task'),
+    apiRow('DELETE','/tasks/{id}',         'Delete task'),
+    apiRow('GET',   '/subjects',           'List subjects'),
+    apiRow('POST',  '/subjects',           'Create subject'),
+    apiRow('GET',   '/stats',              'Aggregated stats'),
+    apiRow('GET',   '/health',             'Health check'),
+    apiRow('GET',   '/metrics',            'Prometheus metrics'),
+  ].join('');
+
+  document.getElementById('auth-api-list').innerHTML = [
+    apiRow('POST', '/register', 'Register new user'),
+    apiRow('POST', '/login',    'Login → JWT'),
+    apiRow('POST', '/verify',   'Verify token'),
+    apiRow('POST', '/refresh',  'Refresh access token'),
+    apiRow('POST', '/logout',   'Invalidate refresh token'),
+    apiRow('GET',  '/me',       'Current user profile'),
+    apiRow('GET',  '/health',   'Health check'),
+    apiRow('GET',  '/metrics',  'Prometheus metrics'),
+  ].join('');
+
+  document.getElementById('notif-api-list').innerHTML = [
+    apiRow('GET',   '/notifications/{user_id}', 'Get user notifications'),
+    apiRow('POST',  '/notifications',           'Create notification'),
+    apiRow('PATCH', '/notifications/{id}/read', 'Mark as read'),
+    apiRow('PATCH', '/notifications/{uid}/read-all', 'Mark all read'),
+    apiRow('POST',  '/events',                  'Publish async event'),
+    apiRow('GET',   '/events/queue-status',     'Queue status'),
+    apiRow('GET',   '/health',                  'Health check'),
+  ].join('');
+
+  document.getElementById('gw-api-list').innerHTML = [
+    apiRow('*',  '/auth/*',          'Proxied → Auth Service (public)'),
+    apiRow('*',  '/tasks',           'Proxied → Task Service (JWT required)'),
+    apiRow('*',  '/tasks/*',         'Proxied → Task Service (JWT required)'),
+    apiRow('*',  '/subjects',        'Proxied → Task Service (JWT required)'),
+    apiRow('*',  '/notifications/*', 'Proxied → Notification Service (JWT)'),
+    apiRow('GET','/health',          'Aggregate health of all services'),
+    apiRow('GET','/services',        'Service registry'),
+    apiRow('GET','/metrics',         'Gateway Prometheus metrics'),
+  ].join('');
+}
+
+// ── Services ───────────────────────────────────────────────────────────────
+function renderServices() {
+  const services = [
+    {name:'API Gateway',          url:API.tasks.replace('8001','8000'), port:8000, status:'up', desc:'Entry point, routing, JWT auth, rate limiting'},
+    {name:'Task Service',         url:API.tasks,                        port:8001, status:'up', desc:'CRUD tasks, subjects, analytics'},
+    {name:'Auth Service',         url:API.auth,                         port:8002, status:'up', desc:'JWT auth, user management'},
+    {name:'Notification Service', url:API.notifications,                port:8003, status:'up', desc:'Alerts, async event queue'},
+    {name:'Prometheus',           url:'http://localhost:9090',          port:9090, status:'up', desc:'Metrics collection & storage'},
+    {name:'Grafana',              url:'http://localhost:3000',          port:3000, status:'up', desc:'Monitoring dashboards'},
+    {name:'Loki',                 url:'http://localhost:3100',          port:3100, status:'up', desc:'Log aggregation'},
+  ];
+  document.getElementById('service-list').innerHTML = services.map(s=>`
+    <div class="service-row">
+      <div class="status-dot ${s.status}"></div>
+      <div style="flex:1">
+        <div class="service-name">${s.name}</div>
+        <div class="service-url">${s.desc}</div>
+      </div>
+      <span class="service-port">:${s.port}</span>
+    </div>
+  `).join('');
+}
+
+// ── Create Task ────────────────────────────────────────────────────────────
+function openAddTask() {
+  // Populate subject dropdown
+  const sel = document.getElementById('new-subject');
+  sel.innerHTML = '<option value="">Select subject…</option>' +
+    state.subjects.map(s=>`<option>${s.name}</option>`).join('');
+  // Default due = tomorrow
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  document.getElementById('new-due').value = tomorrow.toISOString().split('T')[0];
+  document.getElementById('add-task-modal').classList.add('open');
+}
+
+async function createTask() {
+  const title   = document.getElementById('new-title').value.trim();
+  const subject = document.getElementById('new-subject').value;
+  const due     = document.getElementById('new-due').value;
+  const priority= document.getElementById('new-priority').value;
+  const hours   = parseFloat(document.getElementById('new-hours').value) || null;
+  const desc    = document.getElementById('new-desc').value.trim();
+
+  if (!title || !subject || !due) { toast('Please fill in all required fields', 'error'); return; }
+
+  try {
+    const created = await gwFetch('/tasks', {
+      method: 'POST',
+      body: { title, subject, due_date: due, priority, estimated_hours: hours, description: desc, tags: [] },
+      auth: true
+    });
+    state.tasks.push(created);
+    computeStats();
+    closeModal('add-task-modal');
+    toast(`✦ Task "${title}" created!`, 'success');
+    document.getElementById('new-title').value = '';
+    document.getElementById('new-desc').value = '';
+    const page = document.querySelector('.page.active').id;
+    if (page === 'page-dashboard') renderDashboard();
+    if (page === 'page-tasks')     renderAllTasks();
+    updateBadges();
+    // Reload notifications after delay to let the backend process the event
+    setTimeout(async () => {
+      try {
+        const userId = state.auth.user?.id || state.auth.user?.user_id;
+        if (userId) {
+          const notifs = await gwFetch(`/notifications/${encodeURIComponent(userId)}`, { auth: true });
+          state.notifications = Array.isArray(notifs) ? notifs : [];
+          console.log('Notifications reloaded:', state.notifications.length, 'items');
+          renderDashboard();
+          updateBadges();
+        }
+      } catch (e) {
+        console.error('Failed to reload notifications:', e);
+      }
+    }, 1500);
+  } catch (e) {
+    toast(`Failed to create task: ${e.message}`, 'error');
+  }
+}
+
+// ── Create Subject ─────────────────────────────────────────────────────────
+function openAddSubject() {
+  document.getElementById('add-subject-modal').classList.add('open');
+}
+
+async function createSubject() {
+  const name  = document.getElementById('sub-name').value.trim();
+  const color = document.getElementById('sub-color').value;
+  const hours = parseFloat(document.getElementById('sub-hours').value) || null;
+  if (!name) { toast('Subject name required', 'error'); return; }
+  try {
+    const created = await gwFetch('/subjects', {
+      method: 'POST',
+      body: { name, color, target_hours_per_week: hours },
+      auth: true
+    });
+    state.subjects.push(created);
+    closeModal('add-subject-modal');
+    toast(`◈ Subject "${name}" added!`, 'success');
+    document.getElementById('sub-name').value = '';
+    renderSubjectsPage();
+  } catch (e) {
+    toast(`Failed to create subject: ${e.message}`, 'error');
+  }
+}
+
+// ── Modal helpers ──────────────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function toast(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${msg}</span>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+loadTokens();
+if (state.auth.accessToken) {
+  fetchMe()
+    .then(() => enterApp())
+    .catch(() => { syncAuthUI(); showWelcome(); });
+} else {
+  syncAuthUI();
+  showWelcome();
+}
+</script>
+</body>
+</html>

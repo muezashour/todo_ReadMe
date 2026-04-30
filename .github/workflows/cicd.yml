@@ -1,0 +1,192 @@
+name: Study Planner CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/study-planner
+
+jobs:
+
+  # ── Stage 1: Lint & Static Analysis ─────────────────────────────────────────
+  lint:
+    name: Lint & Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install linting tools
+        run: pip install ruff mypy
+
+      - name: Run Ruff linter
+        run: ruff check services/
+
+      - name: Run type checking
+        run: mypy services/ --ignore-missing-imports
+        continue-on-error: true   # warn, not fail
+
+  # ── Stage 2: Unit & Integration Tests ────────────────────────────────────────
+  test:
+    name: Automated Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install pytest pytest-asyncio httpx fastapi pydantic bcrypt PyJWT prometheus-client
+
+      - name: Run tests - Task Service
+        run: pytest tests/test_task_service.py -v --tb=short
+
+      - name: Run tests - Auth Service
+        run: pytest tests/test_auth_service.py -v --tb=short
+
+      - name: Run tests - Notification Service
+        run: pytest tests/test_notification_service.py -v --tb=short
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: tests/reports/
+
+  # ── Stage 3: Security Scanning ────────────────────────────────────────────
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+
+  # ── Stage 4: Build & Push Docker Images ──────────────────────────────────────
+  build:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    needs: security
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: [task-service, auth-service, notification-service, api-gateway]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}
+          tags: |
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Stage 5: Deploy to Staging ────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > ~/.kube/config
+
+      - name: Deploy to staging namespace
+        run: |
+          kubectl apply -f k8s/ -n staging
+          kubectl rollout status deployment/task-service -n staging --timeout=120s
+          kubectl rollout status deployment/auth-service -n staging --timeout=120s
+          kubectl rollout status deployment/notification-service -n staging --timeout=120s
+
+      - name: Run smoke tests
+        run: |
+          GATEWAY_URL=$(kubectl get svc api-gateway -n staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          curl -f http://$GATEWAY_URL/health || exit 1
+
+  # ── Stage 6: Deploy to Production ─────────────────────────────────────────
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          echo "${{ secrets.KUBECONFIG_PROD }}" | base64 -d > ~/.kube/config
+
+      - name: Rolling deploy to production
+        run: |
+          kubectl apply -f k8s/ -n production
+          for svc in task-service auth-service notification-service api-gateway; do
+            kubectl rollout status deployment/$svc -n production --timeout=180s
+          done
+
+      - name: Notify deployment
+        run: |
+          echo "Deployed commit ${{ github.sha }} to production"
